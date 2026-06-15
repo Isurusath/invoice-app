@@ -53,7 +53,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [form, setForm] = useState({ date: todayStr(), houses: 1, hours: 4, rate: 27, km: "" });
+  // Added "location" to the form state
+  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hours: 4, rate: 27, km: "" });
 
   useEffect(() => {
     try { 
@@ -79,7 +80,8 @@ export default function App() {
     const next = [...entries, { ...form, id: Date.now() }];
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
-    setForm(f => ({...f, houses:1, hours:4, km:""}));
+    // Reset location string to empty after adding
+    setForm(f => ({...f, location: "", houses:1, hours:4, km:""}));
   };
 
   const delEntry = (id) => { const next = entries.filter(e => e.id !== id); setEntries(next); saveE(next); };
@@ -91,9 +93,15 @@ export default function App() {
   const trans    = Math.round(totKm * Number(settings.transportRate) * 100) / 100;
   const grand    = totAmt + trans;
 
+  // Helper to determine what to show in the location column
+  const getLocName = (e, short = false) => {
+    if (e.location && e.location.trim() !== "") return e.location;
+    return `${e.houses} ${Number(e.houses)===1 ? (short?"Hse":"House") : (short?"Hses":"Houses")}`;
+  };
+
   const doPrint = () => {
     const rows = entries.map(e => `
-      <tr><td>${fmtDate(e.date)}</td><td>${e.houses} ${Number(e.houses)===1?"House":"Houses"}</td>
+      <tr><td>${fmtDate(e.date)}</td><td>${getLocName(e)}</td>
       <td>${fmtHr(e.hours)}h</td><td>$${e.rate}</td>
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
@@ -154,7 +162,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
     { k:"settings", icon:"⚙️", label:"Settings" },
   ];
 
-  const colW = "70px 52px 32px 60px 56px";
+  const colW = "70px 65px 30px 50px 56px";
 
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",background:C.bg,minHeight:"100vh" }}>
@@ -197,32 +205,37 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
         {tab === "add" && (
           <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
 
-            <Card>
-              <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={e => setForm(f => ({...f,date:e.target.value}))} />
-            </Card>
-
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
+              <Card>
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={e => setForm(f => ({...f,date:e.target.value}))} />
+              </Card>
               <Card>
                 <Label>Houses</Label>
                 <Stepper value={form.houses} min={1} onChange={v => setForm(f => ({...f,houses:v}))} />
               </Card>
+            </div>
+
+            <Card>
+              <Label>Specific Location / Name (Optional)</Label>
+              <Input type="text" value={form.location} onChange={e => setForm(f => ({...f,location:e.target.value}))} placeholder="e.g. Office Building, Smith Residence" />
+            </Card>
+
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
               <Card>
                 <Label>Hours</Label>
                 <Stepper value={form.hours} step={0.5} min={0.5} onChange={v => setForm(f => ({...f,hours:v}))} />
               </Card>
-            </div>
-
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
               <Card>
                 <Label>Rate ($/hr)</Label>
                 <Input type="number" value={form.rate} onChange={e => setForm(f => ({...f,rate:e.target.value}))} />
               </Card>
-              <Card>
-                <Label>Distance (km)</Label>
-                <Input type="number" value={form.km} onChange={e => setForm(f => ({...f,km:e.target.value}))} placeholder="optional" />
-              </Card>
             </div>
+
+            <Card>
+              <Label>Distance (km)</Label>
+              <Input type="number" value={form.km} onChange={e => setForm(f => ({...f,km:e.target.value}))} placeholder="Optional transport distance" />
+            </Card>
 
             {/* Live preview */}
             <div style={{ background:C.tealBg,borderRadius:13,padding:"13px 14px",border:`1.5px solid ${C.teal}` }}>
@@ -230,7 +243,9 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                 <div>
                   <div style={{ fontWeight:700,color:C.navy,fontSize:15 }}>{fmtDate(form.date)}</div>
                   <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
-                    {form.houses} {Number(form.houses)===1?"house":"houses"} · {form.hours}h @ ${form.rate}/hr
+                    <span style={{fontWeight:form.location?700:400, color:form.location?C.navy:C.sub}}>
+                      {getLocName(form)}
+                    </span> · {form.hours}h @ ${form.rate}/hr
                   </div>
                   {form.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {form.km}km transport</div> : null}
                 </div>
@@ -278,6 +293,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                           <span style={{ fontWeight:700,color:C.text,fontSize:15 }}>{fmtMoney(Number(e.hours)*Number(e.rate))}</span>
                         </div>
                         <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
+                          {e.location && <span style={{fontWeight:600, color:C.navy}}>{e.location} · </span>}
                           {e.houses} {Number(e.houses)===1?"house":"houses"} · {fmtHr(e.hours)}h @ ${e.rate}/hr
                           {e.km ? ` · 🚗 ${e.km}km` : ""}
                         </div>
@@ -327,11 +343,13 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
                   {entries.map((e,i) => (
                     <div key={e.id} style={{ display:"grid",gridTemplateColumns:colW,gap:2,padding:"6px 7px",background: i%2===0 ? "white" : C.bg,borderRadius:4 }}>
-                      <div style={{ fontSize:11,color:C.sub }}>{fmtDate(e.date)}</div>
-                      <div style={{ fontSize:11,color:C.text }}>{e.houses} {Number(e.houses)===1?"Hse":"Hses"}</div>
-                      <div style={{ fontSize:11,color:C.text }}>{fmtHr(e.hours)}h</div>
-                      <div style={{ fontSize:11,color:C.text }}>{fmtMoney(Number(e.hours)*Number(e.rate))}</div>
-                      <div style={{ fontSize:11,color:C.sub }}>{e.km ? `${e.km}km` : "-"}</div>
+                      <div style={{ fontSize:10,color:C.sub }}>{fmtDate(e.date)}</div>
+                      <div style={{ fontSize:10,color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", fontWeight:e.location?600:400 }}>
+                        {getLocName(e, true)}
+                      </div>
+                      <div style={{ fontSize:10,color:C.text }}>{fmtHr(e.hours)}h</div>
+                      <div style={{ fontSize:10,color:C.text }}>{fmtMoney(Number(e.hours)*Number(e.rate))}</div>
+                      <div style={{ fontSize:10,color:C.sub }}>{e.km ? `${e.km}km` : "-"}</div>
                     </div>
                   ))}
 
