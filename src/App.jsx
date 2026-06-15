@@ -43,7 +43,7 @@ function Label({ children }) {
 }
 
 function Input({ style, ...props }) {
-  return <input {...props} style={{ width:"100%",padding:"10px 12px",borderRadius:10,border:`1.5px solid ${C.border}`,fontSize:16,color:C.text,boxSizing:"border-box",outline:"none",...style }} />;
+  return <input {...props} style={{ width:"100%", maxWidth:"100%", margin: 0, padding:"10px 12px",borderRadius:10,border:`1.5px solid ${C.border}`,fontSize:16,color:C.text,boxSizing:"border-box",outline:"none", background:"transparent", WebkitAppearance:"none", ...style }} />;
 }
 
 export default function App() {
