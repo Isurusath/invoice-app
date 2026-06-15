@@ -53,7 +53,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  // Added "location" to the form state
+  const [printHtml, setPrintHtml] = useState(null);
+  
   const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hours: 4, rate: 27, km: "" });
 
   useEffect(() => {
@@ -80,7 +81,6 @@ export default function App() {
     const next = [...entries, { ...form, id: Date.now() }];
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
-    // Reset location string to empty after adding
     setForm(f => ({...f, location: "", houses:1, hours:4, km:""}));
   };
 
@@ -93,7 +93,6 @@ export default function App() {
   const trans    = Math.round(totKm * Number(settings.transportRate) * 100) / 100;
   const grand    = totAmt + trans;
 
-  // Helper to determine what to show in the location column
   const getLocName = (e, short = false) => {
     if (e.location && e.location.trim() !== "") return e.location;
     return `${e.houses} ${Number(e.houses)===1 ? (short?"Hse":"House") : (short?"Hses":"Houses")}`;
@@ -105,9 +104,10 @@ export default function App() {
       <td>${fmtHr(e.hours)}h</td><td>$${e.rate}</td>
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
-    const html = `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
+      
+    const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Invoice — ${settings.fromName}</title>
 <style>
-  body{font-family:Arial,sans-serif;padding:32px;color:#111;font-size:13px}
+  body{font-family:Arial,sans-serif;padding:24px;color:#111;font-size:13px;background:#fff;}
   h1{font-size:28px;color:#1B3A6B;letter-spacing:1px;margin:0 0 4px}
   .hdr{display:flex;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1B3A6B;margin-bottom:20px}
   .hdr p{margin:3px 0}
@@ -145,8 +145,9 @@ export default function App() {
 ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} transport</p>` : ""}
 <p class="grand">Grand Total: ${fmtMoney(grand)}</p>
 </body></html>`;
-    const w = window.open("","_blank");
-    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+    
+    // Instead of opening a new window, we save the HTML to state to show the overlay
+    setPrintHtml(html);
   };
 
   if (loading) return (
@@ -376,7 +377,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                 </Card>
 
                 <button onClick={doPrint} style={{ width:"100%",marginTop:12,padding:15,borderRadius:13,border:"none",background:C.teal,color:"white",fontSize:16,fontWeight:700,cursor:"pointer" }}>
-                  🖨️  Print / Save as PDF
+                  🖨️  Preview & Save PDF
                 </button>
               </>
             )}
@@ -415,6 +416,27 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
         )}
 
       </div>
+
+      {/* ════ PDF/PRINT OVERLAY ════════════════ */}
+      {printHtml && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:C.card, zIndex:9999, display:"flex", flexDirection:"column" }}>
+          {/* Header Bar */}
+          <div style={{ padding:"12px 16px", background:C.navy, display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:"calc(12px + env(safe-area-inset-top))" }}>
+            <button onClick={() => setPrintHtml(null)} style={{ background:"transparent", border:"none", color:"white", fontSize:16, fontWeight:700, cursor:"pointer", padding:"8px 0" }}>
+              ← Back to App
+            </button>
+            <button onClick={() => {
+              const frm = document.getElementById("print-frame");
+              if(frm) { frm.contentWindow.focus(); frm.contentWindow.print(); }
+            }} style={{ background:C.teal, color:"white", border:"none", padding:"10px 18px", borderRadius:8, fontSize:15, fontWeight:700, cursor:"pointer", boxShadow:"0 2px 4px rgba(0,0,0,0.2)" }}>
+              🖨️ Print / Save
+            </button>
+          </div>
+          {/* Document Preview */}
+          <iframe id="print-frame" srcDoc={printHtml} title="Invoice Preview" style={{ flex:1, width:"100%", border:"none", background:"white" }} />
+        </div>
+      )}
+
     </div>
   );
 }
