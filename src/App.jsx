@@ -54,16 +54,17 @@ export default function App() {
   const [tab, setTab] = useState("add");
   const [settings, setSettings] = useState(DEF);
   const [entries, setEntries] = useState([]);
-  const [savedInvoices, setSavedInvoices] = useState([]); // New state for saved invoices
+  const [savedInvoices, setSavedInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState(false);
-  const [saveFlash, setSaveFlash] = useState(false); // New flash for save button
+  const [saveFlash, setSaveFlash] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   const [showFullInvoice, setShowFullInvoice] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
-  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
+  // Set default hr and min to empty strings so the boxes start blank
+  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: 27, km: "" });
 
   useEffect(() => {
     try { 
@@ -103,7 +104,8 @@ export default function App() {
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
     
-    setForm(f => ({...f, location: "", houses:1, hr:4, min:0, km:""}));
+    // Reset hr and min to empty strings after adding
+    setForm(f => ({...f, location: "", houses:1, hr:"", min:"", km:""}));
     setEditingId(null);
     
     if (editingId) setTimeout(() => setTab("entries"), 600);
@@ -244,7 +246,7 @@ export default function App() {
   };
 
   const downloadPdf = () => {
-    const html = printHtml; // Now accurately prints the actively viewed invoice (saved or current)
+    const html = printHtml;
     const printWin = window.open("", "_blank");
     
     if (printWin) {
@@ -366,9 +368,10 @@ export default function App() {
               <Card>
                 <Label>Time Worked</Label>
                 <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                  <Input type="number" min="0" value={form.hr} onChange={e => setForm(f => ({...f,hr:e.target.value}))} placeholder="Hr" style={{ padding: "10px 8px" }} />
+                  {/* ADDED onFocus highlight to easily overwrite existing numbers */}
+                  <Input type="number" min="0" value={form.hr} onChange={e => setForm(f => ({...f,hr:e.target.value}))} onFocus={e => e.target.select()} placeholder="Hr" style={{ padding: "10px 8px" }} />
                   <span style={{ fontSize: 14, fontWeight: 700, color: C.sub }}>h</span>
-                  <Input type="number" min="0" max="59" value={form.min} onChange={e => setForm(f => ({...f,min:e.target.value}))} placeholder="Min" style={{ padding: "10px 8px" }} />
+                  <Input type="number" min="0" max="59" value={form.min} onChange={e => setForm(f => ({...f,min:e.target.value}))} onFocus={e => e.target.select()} placeholder="Min" style={{ padding: "10px 8px" }} />
                   <span style={{ fontSize: 14, fontWeight: 700, color: C.sub }}>m</span>
                 </div>
               </Card>
@@ -405,7 +408,7 @@ export default function App() {
               {editingId && (
                 <button onClick={() => {
                   setEditingId(null);
-                  setForm({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: Number(settings.defaultRate)||27, km: "" });
+                  setForm({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: Number(settings.defaultRate)||27, km: "" });
                   setTab("entries");
                 }} style={{ flex: 1, padding:15, borderRadius:13, border:"none", background: C.sub, color:"white", fontSize:15, fontWeight:700, cursor:"pointer" }}>
                   Cancel
