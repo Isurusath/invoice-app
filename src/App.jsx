@@ -8,10 +8,15 @@ const C = {
 };
 
 const fmtHr = (h) => {
-  const n = parseFloat(h) || 0, w = Math.floor(n);
-  const half = Math.abs((n - w) - 0.5) < 0.001;
-  return (!w && half) ? "½" : half ? `${w}½` : `${w}`;
+  const n = parseFloat(h) || 0;
+  // If it's a whole number, return just the number (e.g., "6")
+  if (Number.isInteger(n)) return `${n}`;
+  // If it's exactly a half, return the half symbol (e.g., "6½")
+  if (Math.abs((n - Math.floor(n)) - 0.5) < 0.001) return `${Math.floor(n)}½`;
+  // Otherwise, return the exact decimal up to 2 places (e.g., "6.67")
+  return `${n.toFixed(2)}`; 
 };
+
 const fmtMoney = (n) => `$${Number(n).toFixed(2)}`;
 const fmtDate = (d) => { if (!d) return ""; const [y,m,day] = d.split("-"); return `${day}/${m}/${y}`; };
 const todayStr = () => new Date().toISOString().split("T")[0];
