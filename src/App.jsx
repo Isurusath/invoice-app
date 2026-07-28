@@ -59,7 +59,7 @@ export default function App() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   const [showFullInvoice, setShowFullInvoice] = useState(false);
-  const [editingId, setEditingId] = useState(null); // Tracks which entry is being edited
+  const [editingId, setEditingId] = useState(null);
   
   const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
 
@@ -88,21 +88,17 @@ export default function App() {
     
     let next;
     if (editingId) {
-      // Update existing entry
       next = entries.map(e => e.id === editingId ? { ...form, hours: decHours, id: editingId } : e);
     } else {
-      // Add new entry
       next = [...entries, { ...form, hours: decHours, id: Date.now() }];
     }
     
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
     
-    // Reset form after saving
     setForm(f => ({...f, location: "", houses:1, hr:4, min:0, km:""}));
     setEditingId(null);
     
-    // Switch to entries tab so they can see the saved result
     if (editingId) setTimeout(() => setTab("entries"), 600);
   };
 
@@ -117,7 +113,7 @@ export default function App() {
       km: entry.km || ""
     });
     setEditingId(entry.id);
-    setTab("add"); // Switch to Add screen which now acts as Edit screen
+    setTab("add");
   };
 
   const delEntry = (id) => { const next = entries.filter(e => e.id !== id); setEntries(next); saveE(next); };
@@ -141,7 +137,9 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
+    // Added a media query to dramatically zoom out the preview on mobile screens only
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   @page { margin: 10mm; size: auto; }
   body{font-family:Arial,sans-serif;padding:0;color:#111;font-size:13px;background:#fff;margin:0 auto;max-width:1000px;}
@@ -155,6 +153,11 @@ export default function App() {
   .tot td{background:#1B3A6B!important;color:#fff;font-weight:bold;padding:10px 8px;}
   .grand{text-align:right;font-size:20px;font-weight:bold;color:#1B3A6B;margin-top:14px}
   .sub{text-align:right;font-size:13px;color:#4B5563;margin-top:6px}
+  
+  /* Mobile zoom out to see full structure in the preview box */
+  @media screen and (max-width: 800px) {
+    body { zoom: 0.45; padding: 10px; }
+  }
 </style></head><body>
 <h1>INVOICE</h1>
 <div class="hdr">
@@ -193,13 +196,18 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
   const downloadPdf = () => {
     const html = generateHtml();
     const printWin = window.open("", "_blank");
+    
     if (printWin) {
       printWin.document.write(html);
       printWin.document.close();
       printWin.focus();
+      
+      // Auto-close script fix for iOS/Safari!
       setTimeout(() => {
         printWin.print();
+        printWin.close(); // Automatically kills the trapped window when print is done or cancelled
       }, 300);
+      
     } else {
       alert("Please allow popups in your browser to download the PDF.");
     }
@@ -223,19 +231,18 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
       {/* ── Popup Modal Overlay ── */}
       {showFullInvoice && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 15 }}>
-          <div style={{ background: "#fff", width: "100%", maxWidth: 800, height: "90%", borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          
+          {/* Much smaller width and height container */}
+          <div style={{ background: "#fff", width: "100%", maxWidth: "500px", height: "80%", borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
             
-            {/* Modal Header with X */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
               <h3 style={{ margin: 0, color: C.navy, fontSize: 18 }}>Preview</h3>
               <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: C.sub, padding: 0, lineHeight: 1 }}>✖</button>
             </div>
             
-            {/* Invoice Display */}
             <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="Invoice Preview" />
             
-            {/* Modal Footer with Print Action */}
             <div style={{ padding: 14, borderTop: `1px solid ${C.border}`, background: C.bg }}>
               <button onClick={downloadPdf} style={{ width: "100%", padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
                 🖨️ Print / Save as PDF
