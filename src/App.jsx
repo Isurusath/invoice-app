@@ -231,7 +231,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
               <Card>
                 <Label>Hours</Label>
-                <Stepper value={form.hours} step={0.5} min={0.5} onChange={v => setForm(f => ({...f,hours:v}))} />
+                <Input type="number" step="0.01" min="0" value={form.hours} onChange={e => setForm(f => ({...f,hours:e.target.value}))} />
               </Card>
               <Card>
                 <Label>Rate ($/hr)</Label>
@@ -297,4 +297,73 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                       <div style={{ flex:1 }}>
                         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline" }}>
                           <span style={{ fontWeight:700,color:C.navy,fontSize:14 }}>{fmtDate(e.date)}</span>
-                          <span style={{ fontWeight:700,color:C.text,fontSize:15 }}>{fmtMoney(Number(e.hours)*Number(e.rate
+                          <span style={{ fontWeight:700,color:C.text,fontSize:15 }}>{fmtMoney(Number(e.hours)*Number(e.rate))}</span>
+                        </div>
+                        <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
+                          <span style={{fontWeight:e.location?700:400, color:e.location?C.navy:C.sub}}>
+                            {getLocName(e)}
+                          </span> · {fmtHr(e.hours)}h @ ${e.rate}/hr
+                        </div>
+                        {e.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {e.km}km transport</div> : null}
+                      </div>
+                      <button onClick={() => delEntry(e.id)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.redBg,color:C.red,fontSize:18,fontWeight:700,cursor:"pointer",marginLeft:12,flexShrink:0 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ════ INVOICE ════════════════════════════ */}
+        {tab === "invoice" && (
+          <div style={{ padding: 14 }}>
+            <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer",marginBottom: 14 }}>
+               Generate & Preview Invoice
+            </button>
+            {printHtml && (
+              <div style={{ background: "white", padding: 10, borderRadius: 10, overflowX: "auto" }}>
+                 <iframe srcDoc={printHtml} style={{ width: "100%", height: "600px", border: "none" }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════ SETTINGS ════════════════════════════ */}
+        {tab === "settings" && (
+          <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
+            <Card>
+              <Label>Default Hourly Rate ($)</Label>
+              <Input type="number" value={settings.defaultRate} onChange={e => updS({defaultRate:e.target.value})} />
+            </Card>
+            <Card>
+              <Label>Transport Rate ($/km)</Label>
+              <Input type="number" value={settings.transportRate} onChange={e => updS({transportRate:e.target.value})} />
+            </Card>
+            <Card>
+              <Label>From Name</Label>
+              <Input type="text" value={settings.fromName} onChange={e => updS({fromName:e.target.value})} />
+            </Card>
+             <Card>
+              <Label>To Name</Label>
+              <Input type="text" value={settings.toName} onChange={e => updS({toName:e.target.value})} />
+            </Card>
+            <Card>
+              <Label>Phone</Label>
+              <Input type="text" value={settings.phone} onChange={e => updS({phone:e.target.value})} />
+            </Card>
+            <Card>
+              <Label>Email</Label>
+              <Input type="text" value={settings.email} onChange={e => updS({email:e.target.value})} />
+            </Card>
+            <Card>
+              <Label>Website</Label>
+              <Input type="text" value={settings.website} onChange={e => updS({website:e.target.value})} />
+            </Card>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
