@@ -137,11 +137,15 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // HTML is now completely clean of responsive hacks. It just builds a perfect A4 invoice.
+    // I replaced the buggy scaling tricks with standard Responsive CSS (@media screen).
+    // Now it adjusts font sizes cleanly on mobile, and stays huge for the Print PDF.
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   @page { margin: 10mm; size: auto; }
-  body { font-family: Arial, sans-serif; margin: 0; padding: 40px; background: #fff; color: #111; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; box-sizing: border-box; }
+  .invoice-box { padding: 30px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
+  
   h1 { font-size: 32px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 8px; }
   .hdr { display: flex; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid #1B3A6B; margin-bottom: 20px; }
   .hdr p { margin: 4px 0; font-size: 14px; }
@@ -152,8 +156,21 @@ export default function App() {
   .tot td { background: #1B3A6B !important; color: #fff; font-weight: bold; padding: 14px 12px; }
   .grand { text-align: right; font-size: 24px; font-weight: bold; color: #1B3A6B; margin-top: 20px; }
   .sub { text-align: right; font-size: 14px; color: #4B5563; margin-top: 8px; }
+
+  /* Mobile Responsive View - Only applies to the on-screen preview */
+  @media screen and (max-width: 600px) {
+    .invoice-box { padding: 12px; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .hdr { padding-bottom: 10px; margin-bottom: 14px; flex-direction: row; }
+    .hdr p { font-size: 11px; margin: 2px 0; }
+    th { padding: 8px 6px; font-size: 11px; }
+    td { padding: 8px 6px; font-size: 11px; }
+    .tot td { padding: 10px 6px; font-size: 12px; }
+    .grand { font-size: 18px; margin-top: 14px; }
+    .sub { font-size: 11px; }
+  }
 </style></head><body>
-<div>
+<div class="invoice-box">
   <h1>INVOICE</h1>
   <div class="hdr">
     <div>
@@ -226,27 +243,23 @@ export default function App() {
 
       {/* ── Perfected Popup Modal Overlay ── */}
       {showFullInvoice && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", boxSizing: "border-box" }}>
           
-          <div style={{ background: "#E5E7EB", width: "100%", maxWidth: "450px", height: "85%", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: "450px", height: "90%", maxHeight: "90%", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
             
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: `1px solid ${C.border}`, background: "#fff", zIndex: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: `1px solid ${C.border}`, zIndex: 10 }}>
               <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer", color: C.sub, padding: 0, width: "60px", textAlign: "left" }}>✕</button>
               <h3 style={{ margin: 0, color: C.navy, fontSize: "16px", fontWeight: "700", flex: 1, textAlign: "center" }}>Preview</h3>
               <button onClick={downloadPdf} style={{ background: "transparent", border: "none", fontSize: "15px", cursor: "pointer", color: C.teal, padding: 0, fontWeight: "700", width: "60px", textAlign: "right" }}>Print</button>
             </div>
             
-            {/* THIS IS THE FIX: A flex container that forces the A4 document to scale down by 38% */}
-            <div style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", pointerEvents: "none" }}>
-               {/* 794x1123 is the exact pixel dimension of an A4 piece of paper */}
-               <div style={{ width: "794px", height: "1123px", transform: "scale(0.38)", transformOrigin: "center center", backgroundColor: "#fff", boxShadow: "0 0 30px rgba(0,0,0,0.15)" }}>
-                   <iframe 
-                      srcDoc={printHtml} 
-                      scrolling="no"
-                      style={{ border: "none", width: "100%", height: "100%" }} 
-                      title="Invoice Preview" 
-                   />
-               </div>
+            {/* Standard responsive iframe container */}
+            <div style={{ flex: 1, backgroundColor: "#fff", position: "relative", overflow: "hidden" }}>
+               <iframe 
+                  srcDoc={printHtml} 
+                  style={{ border: "none", width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }} 
+                  title="Invoice Preview" 
+               />
             </div>
             
           </div>
