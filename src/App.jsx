@@ -112,20 +112,21 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
+    // ⬇️ THIS CSS HAS BEEN COMPACTED TO FIT ON ONE PAGE ⬇️
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <style>
-  @page { margin: 15mm; size: auto; }
-  body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:14px;background:#fff;margin:0 auto;max-width:1000px;}
-  h1{font-size:32px;color:#1B3A6B;letter-spacing:1px;margin:0 0 6px}
-  .hdr{display:flex;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1B3A6B;margin-bottom:24px}
-  .hdr p{margin:4px 0}
+  @page { margin: 10mm; size: auto; }
+  body{font-family:Arial,sans-serif;padding:0;color:#111;font-size:13px;background:#fff;margin:0 auto;max-width:1000px;}
+  h1{font-size:28px;color:#1B3A6B;letter-spacing:1px;margin:0 0 6px}
+  .hdr{display:flex;justify-content:space-between;padding-bottom:12px;border-bottom:2px solid #1B3A6B;margin-bottom:16px}
+  .hdr p{margin:3px 0}
   table{width:100%;border-collapse:collapse}
-  th{background:#1B3A6B;color:#fff;padding:12px 12px;text-align:left;font-size:13px}
-  td{padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:14px}
+  th{background:#1B3A6B;color:#fff;padding:8px;text-align:left;font-size:12px}
+  td{padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px}
   tr:nth-child(even) td{background:#f9fafb}
-  .tot td{background:#1B3A6B!important;color:#fff;font-weight:bold}
-  .grand{text-align:right;font-size:22px;font-weight:bold;color:#1B3A6B;margin-top:18px}
-  .sub{text-align:right;font-size:14px;color:#4B5563;margin-top:8px}
+  .tot td{background:#1B3A6B!important;color:#fff;font-weight:bold;padding:10px 8px;}
+  .grand{text-align:right;font-size:20px;font-weight:bold;color:#1B3A6B;margin-top:14px}
+  .sub{text-align:right;font-size:13px;color:#4B5563;margin-top:6px}
 </style></head><body>
 <h1>INVOICE</h1>
 <div class="hdr">
