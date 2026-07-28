@@ -137,53 +137,65 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // Added a media query to dramatically zoom out the preview on mobile screens only
+    // Implemented a robust responsive transform scale for the iframe preview
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   @page { margin: 10mm; size: auto; }
-  body{font-family:Arial,sans-serif;padding:0;color:#111;font-size:13px;background:#fff;margin:0 auto;max-width:1000px;}
-  h1{font-size:28px;color:#1B3A6B;letter-spacing:1px;margin:0 0 6px}
-  .hdr{display:flex;justify-content:space-between;padding-bottom:12px;border-bottom:2px solid #1B3A6B;margin-bottom:16px}
-  .hdr p{margin:3px 0}
-  table{width:100%;border-collapse:collapse}
-  th{background:#1B3A6B;color:#fff;padding:8px;text-align:left;font-size:12px}
-  td{padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px}
-  tr:nth-child(even) td{background:#f9fafb}
-  .tot td{background:#1B3A6B!important;color:#fff;font-weight:bold;padding:10px 8px;}
-  .grand{text-align:right;font-size:20px;font-weight:bold;color:#1B3A6B;margin-top:14px}
-  .sub{text-align:right;font-size:13px;color:#4B5563;margin-top:6px}
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
   
-  /* Mobile zoom out to see full structure in the preview box */
-  @media screen and (max-width: 800px) {
-    body { zoom: 0.45; padding: 10px; }
+  /* The main container acts as a fixed A4 sheet */
+  .invoice-box { width: 800px; padding: 20px; box-sizing: border-box; transform-origin: top left; margin: 0 auto; }
+  
+  h1 { font-size: 28px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 6px; }
+  .hdr { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #1B3A6B; margin-bottom: 16px; }
+  .hdr p { margin: 3px 0; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1B3A6B; color: #fff; padding: 8px; text-align: left; font-size: 12px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  .tot td { background: #1B3A6B !important; color: #fff; font-weight: bold; padding: 10px 8px; }
+  .grand { text-align: right; font-size: 20px; font-weight: bold; color: #1B3A6B; margin-top: 14px; }
+  .sub { text-align: right; font-size: 13px; color: #4B5563; margin-top: 6px; }
+  
+  /* Shrink the invoice perfectly inside the mobile preview modal */
+  @media screen {
+    body { overflow-x: hidden; }
+    .invoice-box { transform: scale(calc(100vw / 820)); }
+  }
+  
+  /* Ignore the scale trick when actually printing */
+  @media print {
+    .invoice-box { width: 100%; transform: none; padding: 0; }
   }
 </style></head><body>
-<h1>INVOICE</h1>
-<div class="hdr">
-  <div>
-    <p><strong>To: -</strong> ${settings.toName}</p>
-    <p>Phone: - ${settings.phone}</p>
-    <p>${settings.email}</p>
-    <p>${settings.website}</p>
+<div class="invoice-box">
+  <h1>INVOICE</h1>
+  <div class="hdr">
+    <div>
+      <p><strong>To: -</strong> ${settings.toName}</p>
+      <p>Phone: - ${settings.phone}</p>
+      <p>${settings.email}</p>
+      <p>${settings.website}</p>
+    </div>
+    <div style="text-align:right">
+      <p><strong>From: -</strong> ${settings.fromName}</p>
+    </div>
   </div>
-  <div style="text-align:right">
-    <p><strong>From: -</strong> ${settings.fromName}</p>
-  </div>
+  <table>
+  <thead><tr><th>Date</th><th>Location</th><th>Time</th><th>Rate</th><th>Amount</th><th>For Transport</th></tr></thead>
+  <tbody>
+    ${rows}
+    <tr class="tot">
+      <td colspan="2">Total</td>
+      <td>${fmtHr(totHours)}</td><td></td>
+      <td>${fmtMoney(totAmt)}</td>
+      <td>${totKm>0 ? totKm+"km ("+fmtMoney(trans)+")" : "-"}</td>
+    </tr>
+  </tbody></table>
+  ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} transport</p>` : ""}
+  <p class="grand">Grand Total: ${fmtMoney(grand)}</p>
 </div>
-<table>
-<thead><tr><th>Date</th><th>Location</th><th>Time</th><th>Rate</th><th>Amount</th><th>For Transport</th></tr></thead>
-<tbody>
-  ${rows}
-  <tr class="tot">
-    <td colspan="2">Total</td>
-    <td>${fmtHr(totHours)}</td><td></td>
-    <td>${fmtMoney(totAmt)}</td>
-    <td>${totKm>0 ? totKm+"km ("+fmtMoney(trans)+")" : "-"}</td>
-  </tr>
-</tbody></table>
-${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} transport</p>` : ""}
-<p class="grand">Grand Total: ${fmtMoney(grand)}</p>
 </body></html>`;
   };
 
@@ -202,10 +214,9 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
       printWin.document.close();
       printWin.focus();
       
-      // Auto-close script fix for iOS/Safari!
       setTimeout(() => {
         printWin.print();
-        printWin.close(); // Automatically kills the trapped window when print is done or cancelled
+        printWin.close(); 
       }, 300);
       
     } else {
@@ -229,26 +240,21 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",background:C.bg,minHeight:"100vh" }}>
 
-      {/* ── Popup Modal Overlay ── */}
+      {/* ── Redesigned Popup Modal Overlay ── */}
       {showFullInvoice && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
           
-          {/* Much smaller width and height container */}
-          <div style={{ background: "#fff", width: "100%", maxWidth: "500px", height: "80%", borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: "450px", height: "85%", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
             
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
-              <h3 style={{ margin: 0, color: C.navy, fontSize: 18 }}>Preview</h3>
-              <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: C.sub, padding: 0, lineHeight: 1 }}>✖</button>
+            {/* Header matched perfectly to your reference image */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
+              <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer", color: C.sub, padding: 0, width: "60px", textAlign: "left" }}>✕</button>
+              <h3 style={{ margin: 0, color: C.navy, fontSize: "16px", fontWeight: "700", flex: 1, textAlign: "center" }}>Preview</h3>
+              <button onClick={downloadPdf} style={{ background: "transparent", border: "none", fontSize: "15px", cursor: "pointer", color: C.teal, padding: 0, fontWeight: "700", width: "60px", textAlign: "right" }}>Print</button>
             </div>
             
-            <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="Invoice Preview" />
+            <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%", backgroundColor: "#fff" }} title="Invoice Preview" />
             
-            <div style={{ padding: 14, borderTop: `1px solid ${C.border}`, background: C.bg }}>
-              <button onClick={downloadPdf} style={{ width: "100%", padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
-                🖨️ Print / Save as PDF
-              </button>
-            </div>
-
           </div>
         </div>
       )}
