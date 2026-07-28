@@ -7,14 +7,14 @@ const C = {
   red: "#EF4444", redBg: "#FEF2F2", green: "#059669",
 };
 
+// Updated to display actual hours and minutes on the invoice
 const fmtHr = (h) => {
   const n = parseFloat(h) || 0;
-  // If it's a whole number, return just the number (e.g., "6")
-  if (Number.isInteger(n)) return `${n}`;
-  // If it's exactly a half, return the half symbol (e.g., "6½")
-  if (Math.abs((n - Math.floor(n)) - 0.5) < 0.001) return `${Math.floor(n)}½`;
-  // Otherwise, return the exact decimal up to 2 places (e.g., "6.67")
-  return `${n.toFixed(2)}`; 
+  const hrs = Math.floor(n);
+  const mins = Math.round((n - hrs) * 60);
+  if (mins === 0) return `${hrs}h`;
+  if (hrs === 0) return `${mins}m`;
+  return `${hrs}h ${mins}m`;
 };
 
 const fmtMoney = (n) => `$${Number(n).toFixed(2)}`;
@@ -60,7 +60,8 @@ export default function App() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   
-  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hours: 4, rate: 27, km: "" });
+  // Split the form state into hr (hours) and min (minutes)
+  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
 
   useEffect(() => {
     try { 
@@ -83,10 +84,13 @@ export default function App() {
   const updS = (patch) => { const next = {...settings,...patch}; setSettings(next); saveS(next); };
 
   const addEntry = () => {
-    const next = [...entries, { ...form, id: Date.now() }];
+    // This correctly converts your Hours + Minutes into the decimal needed for multiplication
+    const decHours = Number(form.hr || 0) + (Number(form.min || 0) / 60);
+    const next = [...entries, { ...form, hours: decHours, id: Date.now() }];
+    
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
-    setForm(f => ({...f, location: "", houses:1, hours:4, km:""}));
+    setForm(f => ({...f, location: "", houses:1, hr:4, min:0, km:""}));
   };
 
   const delEntry = (id) => { const next = entries.filter(e => e.id !== id); setEntries(next); saveE(next); };
@@ -104,14 +108,12 @@ export default function App() {
   };
 
   const doPrint = () => {
-    // We pass the full names back in
     const rows = entries.map(e => `
       <tr><td>${fmtDate(e.date)}</td><td>${getLocName(e)}</td>
-      <td>${fmtHr(e.hours)}h</td><td>$${e.rate}</td>
+      <td>${fmtHr(e.hours)}</td><td>$${e.rate}</td>
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // Notice we removed the viewport tag and added min-width: 800px to force a zoomed-out view
     const html = `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <style>
   body{font-family:Arial,sans-serif;padding:32px;color:#111;font-size:14px;background:#fff;min-width:800px;margin:0 auto;}
@@ -139,12 +141,12 @@ export default function App() {
   </div>
 </div>
 <table>
-<thead><tr><th>Date</th><th>Location</th><th>Hours</th><th>Rate</th><th>Amount</th><th>For Transport</th></tr></thead>
+<thead><tr><th>Date</th><th>Location</th><th>Time</th><th>Rate</th><th>Amount</th><th>For Transport</th></tr></thead>
 <tbody>
   ${rows}
   <tr class="tot">
     <td colspan="2">Total</td>
-    <td>${fmtHr(totHours)}h</td><td></td>
+    <td>${fmtHr(totHours)}</td><td></td>
     <td>${fmtMoney(totAmt)}</td>
     <td>${totKm>0 ? totKm+"km ("+fmtMoney(trans)+")" : "-"}</td>
   </tr>
@@ -168,8 +170,6 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
     { k:"invoice",  icon:"🧾", label:"Invoice" },
     { k:"settings", icon:"⚙️", label:"Settings" },
   ];
-
-  const colW = "70px 65px 30px 50px 56px";
 
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",background:C.bg,minHeight:"100vh" }}>
@@ -198,7 +198,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
       {/* ── Summary strip */}
       <div style={{ background:C.card,borderBottom:`1px solid ${C.border}`,display:"flex",padding:"10px 8px" }}>
-        {[["Entries",entries.length],["Hours",fmtHr(totHours)+"h"],["Labour",fmtMoney(totAmt)],["Total",fmtMoney(grand)]].map(([l,v],i) => (
+        {[["Entries",entries.length],["Time",fmtHr(totHours)],["Labour",fmtMoney(totAmt)],["Total",fmtMoney(grand)]].map(([l,v],i) => (
           <div key={l} style={{ flex:1,textAlign:"center",borderLeft: i>0 ? `1px solid ${C.border}` : "none" }}>
             <div style={{ fontSize:10,color:C.muted }}>{l}</div>
             <div style={{ fontSize:15,fontWeight:700,color: i===3 ? C.teal : C.navy }}>{v}</div>
@@ -230,8 +230,13 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
               <Card>
-                <Label>Hours</Label>
-                <Input type="number" step="0.01" min="0" value={form.hours} onChange={e => setForm(f => ({...f,hours:e.target.value}))} />
+                <Label>Time Worked</Label>
+                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                  <Input type="number" min="0" value={form.hr} onChange={e => setForm(f => ({...f,hr:e.target.value}))} placeholder="Hr" style={{ padding: "10px 8px" }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.sub }}>h</span>
+                  <Input type="number" min="0" max="59" value={form.min} onChange={e => setForm(f => ({...f,min:e.target.value}))} placeholder="Min" style={{ padding: "10px 8px" }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.sub }}>m</span>
+                </div>
               </Card>
               <Card>
                 <Label>Rate ($/hr)</Label>
@@ -252,11 +257,13 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                   <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
                     <span style={{fontWeight:form.location?700:400, color:form.location?C.navy:C.sub}}>
                       {getLocName(form)}
-                    </span> · {form.hours}h @ ${form.rate}/hr
+                    </span> · {Number(form.hr)||0}h {Number(form.min)||0}m @ ${form.rate}/hr
                   </div>
                   {form.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {form.km}km transport</div> : null}
                 </div>
-                <div style={{ fontSize:24,fontWeight:800,color:C.navy }}>{fmtMoney(Number(form.hours)*Number(form.rate))}</div>
+                <div style={{ fontSize:24,fontWeight:800,color:C.navy }}>
+                   {fmtMoney((Number(form.hr || 0) + (Number(form.min || 0) / 60)) * Number(form.rate))}
+                </div>
               </div>
             </div>
 
@@ -302,7 +309,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                         <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
                           <span style={{fontWeight:e.location?700:400, color:e.location?C.navy:C.sub}}>
                             {getLocName(e)}
-                          </span> · {fmtHr(e.hours)}h @ ${e.rate}/hr
+                          </span> · {fmtHr(e.hours)} @ ${e.rate}/hr
                         </div>
                         {e.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {e.km}km transport</div> : null}
                       </div>
