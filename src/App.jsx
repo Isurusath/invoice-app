@@ -137,37 +137,37 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // I replaced the buggy scaling tricks with standard Responsive CSS (@media screen).
-    // Now it adjusts font sizes cleanly on mobile, and stays huge for the Print PDF.
+    // I restored the highly compact padding/font sizes for the base Print view to keep it on one page
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   @page { margin: 10mm; size: auto; }
   body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; box-sizing: border-box; }
-  .invoice-box { padding: 30px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
   
-  h1 { font-size: 32px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 8px; }
-  .hdr { display: flex; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid #1B3A6B; margin-bottom: 20px; }
-  .hdr p { margin: 4px 0; font-size: 14px; }
+  /* BASE STYLES: Very compact to ensure the printed PDF stays on one single page */
+  .invoice-box { padding: 15px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
+  h1 { font-size: 26px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 6px; }
+  .hdr { display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 2px solid #1B3A6B; margin-bottom: 12px; }
+  .hdr p { margin: 2px 0; font-size: 13px; }
   table { width: 100%; border-collapse: collapse; }
-  th { background: #1B3A6B; color: #fff; padding: 12px; text-align: left; font-size: 13px; }
-  td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+  th { background: #1B3A6B; color: #fff; padding: 6px; text-align: left; font-size: 12px; }
+  td { padding: 5px 6px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
   tr:nth-child(even) td { background: #f9fafb; }
-  .tot td { background: #1B3A6B !important; color: #fff; font-weight: bold; padding: 14px 12px; }
-  .grand { text-align: right; font-size: 24px; font-weight: bold; color: #1B3A6B; margin-top: 20px; }
-  .sub { text-align: right; font-size: 14px; color: #4B5563; margin-top: 8px; }
+  .tot td { background: #1B3A6B !important; color: #fff; font-weight: bold; padding: 8px 6px; }
+  .grand { text-align: right; font-size: 18px; font-weight: bold; color: #1B3A6B; margin-top: 12px; }
+  .sub { text-align: right; font-size: 12px; color: #4B5563; margin-top: 6px; }
 
-  /* Mobile Responsive View - Only applies to the on-screen preview */
+  /* MOBILE PREVIEW STYLES: Shrinks fonts safely to fit the popup overlay without scaling tricks */
   @media screen and (max-width: 600px) {
-    .invoice-box { padding: 12px; }
-    h1 { font-size: 22px; margin-bottom: 6px; }
-    .hdr { padding-bottom: 10px; margin-bottom: 14px; flex-direction: row; }
-    .hdr p { font-size: 11px; margin: 2px 0; }
-    th { padding: 8px 6px; font-size: 11px; }
-    td { padding: 8px 6px; font-size: 11px; }
-    .tot td { padding: 10px 6px; font-size: 12px; }
-    .grand { font-size: 18px; margin-top: 14px; }
-    .sub { font-size: 11px; }
+    .invoice-box { padding: 10px; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .hdr { padding-bottom: 8px; margin-bottom: 10px; }
+    .hdr p { font-size: 11px; margin: 1px 0; }
+    th { padding: 6px 4px; font-size: 10px; }
+    td { padding: 6px 4px; font-size: 10px; }
+    .tot td { padding: 8px 4px; font-size: 11px; }
+    .grand { font-size: 16px; margin-top: 10px; }
+    .sub { font-size: 10px; }
   }
 </style></head><body>
 <div class="invoice-box">
