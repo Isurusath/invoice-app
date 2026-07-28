@@ -54,8 +54,10 @@ export default function App() {
   const [tab, setTab] = useState("add");
   const [settings, setSettings] = useState(DEF);
   const [entries, setEntries] = useState([]);
+  const [savedInvoices, setSavedInvoices] = useState([]); // New state for saved invoices
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false); // New flash for save button
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   const [showFullInvoice, setShowFullInvoice] = useState(false);
@@ -67,6 +69,10 @@ export default function App() {
     try { 
       const r = localStorage.getItem("mc_entries"); 
       if (r) setEntries(JSON.parse(r)); 
+    } catch {}
+    try { 
+      const r = localStorage.getItem("mc_invoices"); 
+      if (r) setSavedInvoices(JSON.parse(r)); 
     } catch {}
     try {
       const r = localStorage.getItem("mc_settings");
@@ -80,6 +86,7 @@ export default function App() {
   }, []);
 
   const saveE = (arr) => { try { localStorage.setItem("mc_entries", JSON.stringify(arr)); } catch {} };
+  const saveI = (arr) => { try { localStorage.setItem("mc_invoices", JSON.stringify(arr)); } catch {} };
   const saveS = (obj) => { try { localStorage.setItem("mc_settings", JSON.stringify(obj)); } catch {} };
   const updS = (patch) => { const next = {...settings,...patch}; setSettings(next); saveS(next); };
 
@@ -137,14 +144,12 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // I restored the highly compact padding/font sizes for the base Print view to keep it on one page
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   @page { margin: 10mm; size: auto; }
   body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; box-sizing: border-box; }
   
-  /* BASE STYLES: Very compact to ensure the printed PDF stays on one single page */
   .invoice-box { padding: 15px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
   h1 { font-size: 26px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 6px; }
   .hdr { display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 2px solid #1B3A6B; margin-bottom: 12px; }
@@ -157,7 +162,6 @@ export default function App() {
   .grand { text-align: right; font-size: 18px; font-weight: bold; color: #1B3A6B; margin-top: 12px; }
   .sub { text-align: right; font-size: 12px; color: #4B5563; margin-top: 6px; }
 
-  /* MOBILE PREVIEW STYLES: Shrinks fonts safely to fit the popup overlay without scaling tricks */
   @media screen and (max-width: 600px) {
     .invoice-box { padding: 10px; }
     h1 { font-size: 20px; margin-bottom: 4px; }
@@ -206,8 +210,41 @@ export default function App() {
     setShowFullInvoice(true);
   };
 
-  const downloadPdf = () => {
+  const saveInvoiceToHistory = () => {
+    if (entries.length === 0) {
+      alert("Add some entries before saving an invoice!");
+      return;
+    }
     const html = generateHtml();
+    const newInvoice = {
+      id: Date.now(),
+      date: todayStr(),
+      total: grand,
+      html: html
+    };
+    const next = [newInvoice, ...savedInvoices];
+    setSavedInvoices(next);
+    saveI(next);
+    
+    setSaveFlash(true); 
+    setTimeout(() => setSaveFlash(false), 2000);
+  };
+
+  const viewSavedInvoice = (html) => {
+    setPrintHtml(html);
+    setShowFullInvoice(true);
+  };
+
+  const delSavedInvoice = (id) => { 
+    if(window.confirm("Delete this saved invoice permanently?")) {
+      const next = savedInvoices.filter(i => i.id !== id); 
+      setSavedInvoices(next); 
+      saveI(next); 
+    }
+  };
+
+  const downloadPdf = () => {
+    const html = printHtml; // Now accurately prints the actively viewed invoice (saved or current)
     const printWin = window.open("", "_blank");
     
     if (printWin) {
@@ -253,7 +290,6 @@ export default function App() {
               <button onClick={downloadPdf} style={{ background: "transparent", border: "none", fontSize: "15px", cursor: "pointer", color: C.teal, padding: 0, fontWeight: "700", width: "60px", textAlign: "right" }}>Print</button>
             </div>
             
-            {/* Standard responsive iframe container */}
             <div style={{ flex: 1, backgroundColor: "#fff", position: "relative", overflow: "hidden" }}>
                <iframe 
                   srcDoc={printHtml} 
@@ -437,15 +473,42 @@ export default function App() {
           </div>
         )}
 
-        {/* ════ INVOICE ════════════════════════════ */}
+        {/* ════ INVOICE & SAVED HISTORY ════════════════════ */}
         {tab === "invoice" && (
           <div style={{ padding: 14 }}>
-            <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer" }}>
-               📄 Generate & Preview Invoice
-            </button>
-            <p style={{ textAlign: "center", color: C.sub, fontSize: 13, marginTop: 12 }}>
-               Tap above to open the invoice modal. You can print or download the PDF from there.
-            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer" }}>
+                 📄 Generate & Preview Invoice
+              </button>
+              
+              <button onClick={saveInvoiceToHistory} style={{ width:"100%",padding:13,borderRadius:13,border:`2px solid ${C.navy}`,background:"transparent",color:C.navy,fontSize:15,fontWeight:700,cursor:"pointer",transition:"all 0.3s" }}>
+                 {saveFlash ? "✓  Saved to History!" : "💾  Save Invoice to History"}
+              </button>
+            </div>
+
+            <div style={{ marginTop: 28 }}>
+              <Label>Saved Invoices ({savedInvoices.length})</Label>
+              {savedInvoices.length === 0 ? (
+                <p style={{ textAlign: "center", color: C.sub, fontSize: 13, marginTop: 12 }}>
+                   No saved invoices yet. Click the save button above to keep a permanent record.
+                </p>
+              ) : (
+                <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                  {savedInvoices.map(inv => (
+                    <div key={inv.id} style={{ background:C.card,borderRadius:12,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                      <div>
+                        <div style={{ fontWeight:700,color:C.navy,fontSize:14 }}>{fmtDate(inv.date)}</div>
+                        <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>Total: {fmtMoney(inv.total)}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => viewSavedInvoice(inv.html)} style={{ padding:"8px 14px",borderRadius:8,border:"none",background:C.tealBg,color:C.teal,fontSize:13,fontWeight:700,cursor:"pointer" }}>View</button>
+                        <button onClick={() => delSavedInvoice(inv.id)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.redBg,color:C.red,fontSize:18,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>×</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
