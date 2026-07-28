@@ -137,15 +137,14 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // Implemented a robust responsive transform scale for the iframe preview
+    // CSS adjusted to lock the preview in place and scale perfectly
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   @page { margin: 10mm; size: auto; }
   body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
   
-  /* The main container acts as a fixed A4 sheet */
-  .invoice-box { width: 800px; padding: 20px; box-sizing: border-box; transform-origin: top left; margin: 0 auto; }
+  .invoice-box { width: 800px; padding: 20px; box-sizing: border-box; }
   
   h1 { font-size: 28px; color: #1B3A6B; letter-spacing: 1px; margin: 0 0 6px; }
   .hdr { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #1B3A6B; margin-bottom: 16px; }
@@ -158,14 +157,15 @@ export default function App() {
   .grand { text-align: right; font-size: 20px; font-weight: bold; color: #1B3A6B; margin-top: 14px; }
   .sub { text-align: right; font-size: 13px; color: #4B5563; margin-top: 6px; }
   
-  /* Shrink the invoice perfectly inside the mobile preview modal */
+  /* Locks the document and scales it down securely on mobile screens */
   @media screen {
-    body { overflow-x: hidden; }
-    .invoice-box { transform: scale(calc(100vw / 820)); }
+    html, body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
+    .invoice-box { transform-origin: top center; transform: scale(calc(100vw / 820)); margin: 0 auto; }
   }
   
-  /* Ignore the scale trick when actually printing */
+  /* Print view ignores screen styles */
   @media print {
+    html, body { position: static; overflow: visible; height: auto; }
     .invoice-box { width: 100%; transform: none; padding: 0; }
   }
 </style></head><body>
@@ -240,20 +240,27 @@ export default function App() {
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",background:C.bg,minHeight:"100vh" }}>
 
-      {/* ── Redesigned Popup Modal Overlay ── */}
+      {/* ── Popup Modal Overlay ── */}
       {showFullInvoice && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
           
           <div style={{ background: "#fff", width: "100%", maxWidth: "450px", height: "85%", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
             
-            {/* Header matched perfectly to your reference image */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
               <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer", color: C.sub, padding: 0, width: "60px", textAlign: "left" }}>✕</button>
               <h3 style={{ margin: 0, color: C.navy, fontSize: "16px", fontWeight: "700", flex: 1, textAlign: "center" }}>Preview</h3>
               <button onClick={downloadPdf} style={{ background: "transparent", border: "none", fontSize: "15px", cursor: "pointer", color: C.teal, padding: 0, fontWeight: "700", width: "60px", textAlign: "right" }}>Print</button>
             </div>
             
-            <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%", backgroundColor: "#fff" }} title="Invoice Preview" />
+            {/* Added pointerEvents: "none" and scrolling="no" to completely lock the document from being dragged on iOS */}
+            <div style={{ flex: 1, backgroundColor: "#fff", overflow: "hidden" }}>
+               <iframe 
+                  srcDoc={printHtml} 
+                  scrolling="no"
+                  style={{ border: "none", width: "100%", height: "100%", pointerEvents: "none", userSelect: "none" }} 
+                  title="Invoice Preview" 
+               />
+            </div>
             
           </div>
         </div>
