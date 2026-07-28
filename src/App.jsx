@@ -58,6 +58,7 @@ export default function App() {
   const [flash, setFlash] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
+  const [showFullInvoice, setShowFullInvoice] = useState(false);
   
   const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
 
@@ -114,7 +115,7 @@ export default function App() {
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <style>
   @page { margin: 15mm; size: auto; }
-  body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:14px;background:#fff;margin:0 auto;}
+  body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:14px;background:#fff;margin:0 auto;max-width:1000px;}
   h1{font-size:32px;color:#1B3A6B;letter-spacing:1px;margin:0 0 6px}
   .hdr{display:flex;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1B3A6B;margin-bottom:24px}
   .hdr p{margin:4px 0}
@@ -157,6 +158,7 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
   const doPrint = () => {
     const html = generateHtml();
     setPrintHtml(html);
+    setShowFullInvoice(true);
   };
 
   const downloadPdf = () => {
@@ -179,6 +181,23 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
       Loading...
     </div>
   );
+
+  // If the user wants to see the full invoice, overlay it on top of the app
+  if (showFullInvoice) {
+    return (
+      <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "#fff", zIndex: 9999, display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", gap: 10, padding: 14, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
+          <button onClick={() => setShowFullInvoice(false)} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.sub, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+            ⬅ Back
+          </button>
+          <button onClick={downloadPdf} style={{ flex: 2, padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+            📥 Save as PDF / Print
+          </button>
+        </div>
+        <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="Invoice Preview" />
+      </div>
+    );
+  }
 
   const TABS = [
     { k:"add",      icon:"➕", label:"Add" },
@@ -340,21 +359,10 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
         {/* ════ INVOICE ════════════════════════════ */}
         {tab === "invoice" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={doPrint} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.navy, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                 👁️ Preview
-              </button>
-              <button onClick={downloadPdf} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                 📥 Save as PDF / Print
-              </button>
-            </div>
-
-            {printHtml && (
-              <div style={{ background: "white", padding: 10, borderRadius: 10, overflowX: "auto" }}>
-                 <iframe srcDoc={printHtml} style={{ width: "100%", height: "600px", border: "none" }} />
-              </div>
-            )}
+          <div style={{ padding: 14 }}>
+            <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer" }}>
+               📄 Generate Full Page Invoice
+            </button>
           </div>
         )}
 
