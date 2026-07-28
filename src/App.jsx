@@ -59,6 +59,7 @@ export default function App() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   const [showFullInvoice, setShowFullInvoice] = useState(false);
+  const [editingId, setEditingId] = useState(null); // Tracks which entry is being edited
   
   const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
 
@@ -82,13 +83,41 @@ export default function App() {
   const saveS = (obj) => { try { localStorage.setItem("mc_settings", JSON.stringify(obj)); } catch {} };
   const updS = (patch) => { const next = {...settings,...patch}; setSettings(next); saveS(next); };
 
-  const addEntry = () => {
+  const addOrUpdateEntry = () => {
     const decHours = Number(form.hr || 0) + (Number(form.min || 0) / 60);
-    const next = [...entries, { ...form, hours: decHours, id: Date.now() }];
+    
+    let next;
+    if (editingId) {
+      // Update existing entry
+      next = entries.map(e => e.id === editingId ? { ...form, hours: decHours, id: editingId } : e);
+    } else {
+      // Add new entry
+      next = [...entries, { ...form, hours: decHours, id: Date.now() }];
+    }
     
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
+    
+    // Reset form after saving
     setForm(f => ({...f, location: "", houses:1, hr:4, min:0, km:""}));
+    setEditingId(null);
+    
+    // Switch to entries tab so they can see the saved result
+    if (editingId) setTimeout(() => setTab("entries"), 600);
+  };
+
+  const startEditing = (entry) => {
+    setForm({
+      date: entry.date,
+      location: entry.location || "",
+      houses: entry.houses || 1,
+      hr: Math.floor(entry.hours),
+      min: Math.round((entry.hours - Math.floor(entry.hours)) * 60),
+      rate: entry.rate,
+      km: entry.km || ""
+    });
+    setEditingId(entry.id);
+    setTab("add"); // Switch to Add screen which now acts as Edit screen
   };
 
   const delEntry = (id) => { const next = entries.filter(e => e.id !== id); setEntries(next); saveE(next); };
@@ -112,7 +141,6 @@ export default function App() {
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    // ⬇️ THIS CSS HAS BEEN COMPACTED TO FIT ON ONE PAGE ⬇️
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <style>
   @page { margin: 10mm; size: auto; }
@@ -183,25 +211,8 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
     </div>
   );
 
-  // If the user wants to see the full invoice, overlay it on top of the app
-  if (showFullInvoice) {
-    return (
-      <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "#fff", zIndex: 9999, display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", gap: 10, padding: 14, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
-          <button onClick={() => setShowFullInvoice(false)} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.sub, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-            ⬅ Back
-          </button>
-          <button onClick={downloadPdf} style={{ flex: 2, padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-            📥 Save as PDF / Print
-          </button>
-        </div>
-        <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="Invoice Preview" />
-      </div>
-    );
-  }
-
   const TABS = [
-    { k:"add",      icon:"➕", label:"Add" },
+    { k:"add",      icon: editingId ? "✏️" : "➕", label: editingId ? "Edit" : "Add" },
     { k:"entries",  icon:"📋", label:`Entries${entries.length ? ` (${entries.length})` : ""}` },
     { k:"invoice",  icon:"🧾", label:"Invoice" },
     { k:"settings", icon:"⚙️", label:"Settings" },
@@ -209,6 +220,31 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",background:C.bg,minHeight:"100vh" }}>
+
+      {/* ── Popup Modal Overlay ── */}
+      {showFullInvoice && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 15 }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: 800, height: "90%", borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+            
+            {/* Modal Header with X */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
+              <h3 style={{ margin: 0, color: C.navy, fontSize: 18 }}>Preview</h3>
+              <button onClick={() => setShowFullInvoice(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: C.sub, padding: 0, lineHeight: 1 }}>✖</button>
+            </div>
+            
+            {/* Invoice Display */}
+            <iframe srcDoc={printHtml} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="Invoice Preview" />
+            
+            {/* Modal Footer with Print Action */}
+            <div style={{ padding: 14, borderTop: `1px solid ${C.border}`, background: C.bg }}>
+              <button onClick={downloadPdf} style={{ width: "100%", padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+                🖨️ Print / Save as PDF
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ── Header */}
       <div style={{ background:C.navy,padding:"16px 16px 12px" }}>
@@ -244,9 +280,15 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
       <div style={{ padding:14 }}>
 
-        {/* ════ ADD ════════════════════════════════ */}
+        {/* ════ ADD / EDIT ════════════════════════════════ */}
         {tab === "add" && (
           <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
+
+            {editingId && (
+              <div style={{ background: C.tealBg, padding: "10px", borderRadius: 10, color: C.teal, fontWeight: 700, textAlign: "center", fontSize: 14 }}>
+                ✏️ Editing Existing Entry
+              </div>
+            )}
 
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:11 }}>
               <Card>
@@ -303,13 +345,24 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
               </div>
             </div>
 
-            <button onClick={addEntry} style={{
-              width:"100%",padding:15,borderRadius:13,border:"none",
-              background: flash ? C.green : C.navy,
-              color:"white",fontSize:16,fontWeight:700,cursor:"pointer",transition:"background 0.3s"
-            }}>
-              {flash ? "✓  Entry added!" : "＋  Add entry"}
-            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              {editingId && (
+                <button onClick={() => {
+                  setEditingId(null);
+                  setForm({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: Number(settings.defaultRate)||27, km: "" });
+                  setTab("entries");
+                }} style={{ flex: 1, padding:15, borderRadius:13, border:"none", background: C.sub, color:"white", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+                  Cancel
+                </button>
+              )}
+              <button onClick={addOrUpdateEntry} style={{
+                flex: 2, padding:15, borderRadius:13, border:"none",
+                background: flash ? C.green : C.navy,
+                color:"white", fontSize:16, fontWeight:700, cursor:"pointer", transition:"background 0.3s"
+              }}>
+                {flash ? "✓  Saved!" : (editingId ? "💾  Update Entry" : "＋  Add Entry")}
+              </button>
+            </div>
           </div>
         )}
 
@@ -349,7 +402,13 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
                         </div>
                         {e.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {e.km}km transport</div> : null}
                       </div>
-                      <button onClick={() => delEntry(e.id)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.redBg,color:C.red,fontSize:18,fontWeight:700,cursor:"pointer",marginLeft:12,flexShrink:0 }}>×</button>
+                      
+                      <div style={{ display: "flex", gap: 6, marginLeft: 12 }}>
+                        {/* Edit Button */}
+                        <button onClick={() => startEditing(e)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.tealBg,color:C.teal,fontSize:16,fontWeight:700,cursor:"pointer",flexShrink:0 }}>✏️</button>
+                        {/* Delete Button */}
+                        <button onClick={() => delEntry(e.id)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.redBg,color:C.red,fontSize:18,fontWeight:700,cursor:"pointer",flexShrink:0 }}>×</button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -362,8 +421,11 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
         {tab === "invoice" && (
           <div style={{ padding: 14 }}>
             <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer" }}>
-               📄 Generate Full Page Invoice
+               📄 Generate & Preview Invoice
             </button>
+            <p style={{ textAlign: "center", color: C.sub, fontSize: 13, marginTop: 12 }}>
+               Tap above to open the invoice modal. You can print or download the PDF from there.
+            </p>
           </div>
         )}
 
