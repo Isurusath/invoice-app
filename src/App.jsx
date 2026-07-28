@@ -7,7 +7,6 @@ const C = {
   red: "#EF4444", redBg: "#FEF2F2", green: "#059669",
 };
 
-// Updated to display actual hours and minutes on the invoice
 const fmtHr = (h) => {
   const n = parseFloat(h) || 0;
   const hrs = Math.floor(n);
@@ -60,7 +59,6 @@ export default function App() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [printHtml, setPrintHtml] = useState(null);
   
-  // Split the form state into hr (hours) and min (minutes)
   const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: 4, min: 0, rate: 27, km: "" });
 
   useEffect(() => {
@@ -84,7 +82,6 @@ export default function App() {
   const updS = (patch) => { const next = {...settings,...patch}; setSettings(next); saveS(next); };
 
   const addEntry = () => {
-    // This correctly converts your Hours + Minutes into the decimal needed for multiplication
     const decHours = Number(form.hr || 0) + (Number(form.min || 0) / 60);
     const next = [...entries, { ...form, hours: decHours, id: Date.now() }];
     
@@ -107,16 +104,17 @@ export default function App() {
     return `${e.houses} ${Number(e.houses)===1 ? "House" : "Houses"}`;
   };
 
-  const doPrint = () => {
+  const generateHtml = () => {
     const rows = entries.map(e => `
       <tr><td>${fmtDate(e.date)}</td><td>${getLocName(e)}</td>
       <td>${fmtHr(e.hours)}</td><td>$${e.rate}</td>
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
-    const html = `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
+    return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <style>
-  body{font-family:Arial,sans-serif;padding:32px;color:#111;font-size:14px;background:#fff;min-width:800px;margin:0 auto;}
+  @page { margin: 15mm; size: auto; }
+  body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:14px;background:#fff;margin:0 auto;}
   h1{font-size:32px;color:#1B3A6B;letter-spacing:1px;margin:0 0 6px}
   .hdr{display:flex;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1B3A6B;margin-bottom:24px}
   .hdr p{margin:4px 0}
@@ -154,8 +152,26 @@ export default function App() {
 ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} transport</p>` : ""}
 <p class="grand">Grand Total: ${fmtMoney(grand)}</p>
 </body></html>`;
-    
+  };
+
+  const doPrint = () => {
+    const html = generateHtml();
     setPrintHtml(html);
+  };
+
+  const downloadPdf = () => {
+    const html = generateHtml();
+    const printWin = window.open("", "_blank");
+    if (printWin) {
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      setTimeout(() => {
+        printWin.print();
+      }, 300);
+    } else {
+      alert("Please allow popups in your browser to download the PDF.");
+    }
   };
 
   if (loading) return (
@@ -324,10 +340,16 @@ ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} tran
 
         {/* ════ INVOICE ════════════════════════════ */}
         {tab === "invoice" && (
-          <div style={{ padding: 14 }}>
-            <button onClick={doPrint} style={{ width:"100%",padding:15,borderRadius:13,border:"none",background:C.navy,color:"white",fontSize:16,fontWeight:700,cursor:"pointer",marginBottom: 14 }}>
-               Generate & Preview Invoice
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={doPrint} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.navy, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                 👁️ Preview
+              </button>
+              <button onClick={downloadPdf} style={{ flex: 1, padding: 15, borderRadius: 13, border: "none", background: C.teal, color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                 📥 Save as PDF / Print
+              </button>
+            </div>
+
             {printHtml && (
               <div style={{ background: "white", padding: 10, borderRadius: 10, overflowX: "auto" }}>
                  <iframe srcDoc={printHtml} style={{ width: "100%", height: "600px", border: "none" }} />
