@@ -24,6 +24,7 @@ const DEF = {
   fromName: "Harshani Liyanaarachchi", toName: "Mina Group Cleaning Services",
   phone: "0401921966", email: "info@minagroup.com.au",
   website: "www.minagroup.com.au", transportRate: "0.109", defaultRate: "27",
+  enableExpenses: false, // NEW: Default toggle for expenses
 };
 
 function Stepper({ value, min=0, step=1, onChange }) {
@@ -42,8 +43,8 @@ function Card({ children, style }) {
   return <div style={{ background:C.card,borderRadius:13,padding:"13px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.05)",...style }}>{children}</div>;
 }
 
-function Label({ children }) {
-  return <div style={{ fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:0.5,marginBottom:8 }}>{children}</div>;
+function Label({ children, style }) {
+  return <div style={{ fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:0.5,marginBottom:8,...style }}>{children}</div>;
 }
 
 function Input({ style, ...props }) {
@@ -63,8 +64,8 @@ export default function App() {
   const [showFullInvoice, setShowFullInvoice] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
-  // Set default hr and min to empty strings so the boxes start blank
-  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: 27, km: "" });
+  // Added expense to the form state
+  const [form, setForm] = useState({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: 27, km: "", expense: "" });
 
   useEffect(() => {
     try { 
@@ -104,8 +105,7 @@ export default function App() {
     setEntries(next); saveE(next);
     setFlash(true); setTimeout(() => setFlash(false), 1600);
     
-    // Reset hr and min to empty strings after adding
-    setForm(f => ({...f, location: "", houses:1, hr:"", min:"", km:""}));
+    setForm(f => ({...f, location: "", houses:1, hr:"", min:"", km:"", expense:""}));
     setEditingId(null);
     
     if (editingId) setTimeout(() => setTab("entries"), 600);
@@ -116,10 +116,11 @@ export default function App() {
       date: entry.date,
       location: entry.location || "",
       houses: entry.houses || 1,
-      hr: Math.floor(entry.hours),
-      min: Math.round((entry.hours - Math.floor(entry.hours)) * 60),
+      hr: Math.floor(entry.hours) || "",
+      min: Math.round((entry.hours - Math.floor(entry.hours)) * 60) || "",
       rate: entry.rate,
-      km: entry.km || ""
+      km: entry.km || "",
+      expense: entry.expense || "" // Load expense if editing
     });
     setEditingId(entry.id);
     setTab("add");
@@ -128,11 +129,13 @@ export default function App() {
   const delEntry = (id) => { const next = entries.filter(e => e.id !== id); setEntries(next); saveE(next); };
   const clearAll = () => { setEntries([]); saveE([]); setConfirmClear(false); };
 
+  // Advanced calculations
   const totHours = entries.reduce((s,e) => s + Number(e.hours), 0);
   const totAmt   = entries.reduce((s,e) => s + Number(e.hours) * Number(e.rate), 0);
   const totKm    = entries.reduce((s,e) => s + (e.km ? Number(e.km) : 0), 0);
+  const totExp   = entries.reduce((s,e) => s + (Number(e.expense) || 0), 0); // New expenses total
   const trans    = Math.round(totKm * Number(settings.transportRate) * 100) / 100;
-  const grand    = totAmt + trans;
+  const grand    = totAmt + trans + totExp; // Added expenses to grand total
 
   const getLocName = (e) => {
     if (e.location && e.location.trim() !== "") return e.location;
@@ -140,12 +143,21 @@ export default function App() {
   };
 
   const generateHtml = () => {
+    const showExp = settings.enableExpenses; // Check if expenses should be rendered
+    
     const rows = entries.map(e => `
       <tr><td>${fmtDate(e.date)}</td><td>${getLocName(e)}</td>
       <td>${fmtHr(e.hours)}</td><td>$${e.rate}</td>
       <td>${fmtMoney(Number(e.hours)*Number(e.rate))}</td>
+      ${showExp ? `<td>${e.expense ? fmtMoney(e.expense) : "-"}</td>` : ""}
       <td>${e.km ? e.km+"km" : "-"}</td></tr>`).join("");
       
+    // Dynamically build the subtotal text at the bottom
+    let subStrParts = [`${fmtMoney(totAmt)} labour`];
+    if (totKm > 0) subStrParts.push(`${fmtMoney(trans)} transport`);
+    if (showExp && totExp > 0) subStrParts.push(`${fmtMoney(totExp)} expenses`);
+    const subStr = subStrParts.length > 1 ? `<p class="sub">${subStrParts.join(" + ")}</p>` : "";
+
     return `<!DOCTYPE html><html><head><title>Invoice — ${settings.fromName}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
@@ -190,17 +202,22 @@ export default function App() {
     </div>
   </div>
   <table>
-  <thead><tr><th>Date</th><th>Location</th><th>Time</th><th>Rate</th><th>Amount</th><th>For Transport</th></tr></thead>
+  <thead><tr>
+    <th>Date</th><th>Location</th><th>Time</th><th>Rate</th><th>Amount</th>
+    ${showExp ? `<th>Expenses</th>` : ""}
+    <th>For Transport</th>
+  </tr></thead>
   <tbody>
     ${rows}
     <tr class="tot">
       <td colspan="2">Total</td>
       <td>${fmtHr(totHours)}</td><td></td>
       <td>${fmtMoney(totAmt)}</td>
+      ${showExp ? `<td>${totExp > 0 ? fmtMoney(totExp) : "-"}</td>` : ""}
       <td>${totKm>0 ? totKm+"km ("+fmtMoney(trans)+")" : "-"}</td>
     </tr>
   </tbody></table>
-  ${totKm>0 ? `<p class="sub">${fmtMoney(totAmt)} labour + ${fmtMoney(trans)} transport</p>` : ""}
+  ${subStr}
   <p class="grand">Grand Total: ${fmtMoney(grand)}</p>
 </div>
 </body></html>`;
@@ -368,7 +385,6 @@ export default function App() {
               <Card>
                 <Label>Time Worked</Label>
                 <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                  {/* ADDED onFocus highlight to easily overwrite existing numbers */}
                   <Input type="number" min="0" value={form.hr} onChange={e => setForm(f => ({...f,hr:e.target.value}))} onFocus={e => e.target.select()} placeholder="Hr" style={{ padding: "10px 8px" }} />
                   <span style={{ fontSize: 14, fontWeight: 700, color: C.sub }}>h</span>
                   <Input type="number" min="0" max="59" value={form.min} onChange={e => setForm(f => ({...f,min:e.target.value}))} onFocus={e => e.target.select()} placeholder="Min" style={{ padding: "10px 8px" }} />
@@ -377,14 +393,23 @@ export default function App() {
               </Card>
               <Card>
                 <Label>Rate ($/hr)</Label>
-                <Input type="number" value={form.rate} onChange={e => setForm(f => ({...f,rate:e.target.value}))} />
+                <Input type="number" value={form.rate} onChange={e => setForm(f => ({...f,rate:e.target.value}))} onFocus={e => e.target.select()} />
               </Card>
             </div>
 
-            <Card>
-              <Label>Distance (km)</Label>
-              <Input type="number" value={form.km} onChange={e => setForm(f => ({...f,km:e.target.value}))} placeholder="Optional transport distance" />
-            </Card>
+            {/* Conditionally rendered distance and expenses depending on settings */}
+            <div style={{ display:"grid",gridTemplateColumns: settings.enableExpenses ? "1fr 1fr" : "1fr",gap:11 }}>
+              <Card>
+                <Label>Distance (km)</Label>
+                <Input type="number" value={form.km} onChange={e => setForm(f => ({...f,km:e.target.value}))} onFocus={e => e.target.select()} placeholder="Optional transport" />
+              </Card>
+              {settings.enableExpenses && (
+                <Card>
+                  <Label>Expenses ($)</Label>
+                  <Input type="number" step="0.01" value={form.expense} onChange={e => setForm(f => ({...f,expense:e.target.value}))} onFocus={e => e.target.select()} placeholder="Optional expenses" />
+                </Card>
+              )}
+            </div>
 
             {/* Live preview */}
             <div style={{ background:C.tealBg,borderRadius:13,padding:"13px 14px",border:`1.5px solid ${C.teal}` }}>
@@ -396,10 +421,13 @@ export default function App() {
                       {getLocName(form)}
                     </span> · {Number(form.hr)||0}h {Number(form.min)||0}m @ ${form.rate}/hr
                   </div>
-                  {form.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {form.km}km transport</div> : null}
+                  <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                    {form.km ? <div style={{ fontSize:12,color:C.sub }}>🚗 {form.km}km</div> : null}
+                    {form.expense ? <div style={{ fontSize:12,color:C.sub }}>🛒 {fmtMoney(form.expense)} exp</div> : null}
+                  </div>
                 </div>
                 <div style={{ fontSize:24,fontWeight:800,color:C.navy }}>
-                   {fmtMoney((Number(form.hr || 0) + (Number(form.min || 0) / 60)) * Number(form.rate))}
+                   {fmtMoney(((Number(form.hr || 0) + (Number(form.min || 0) / 60)) * Number(form.rate)) + (Number(form.expense) || 0))}
                 </div>
               </div>
             </div>
@@ -408,7 +436,7 @@ export default function App() {
               {editingId && (
                 <button onClick={() => {
                   setEditingId(null);
-                  setForm({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: Number(settings.defaultRate)||27, km: "" });
+                  setForm({ date: todayStr(), location: "", houses: 1, hr: "", min: "", rate: Number(settings.defaultRate)||27, km: "", expense: "" });
                   setTab("entries");
                 }} style={{ flex: 1, padding:15, borderRadius:13, border:"none", background: C.sub, color:"white", fontSize:15, fontWeight:700, cursor:"pointer" }}>
                   Cancel
@@ -452,20 +480,21 @@ export default function App() {
                       <div style={{ flex:1 }}>
                         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline" }}>
                           <span style={{ fontWeight:700,color:C.navy,fontSize:14 }}>{fmtDate(e.date)}</span>
-                          <span style={{ fontWeight:700,color:C.text,fontSize:15 }}>{fmtMoney(Number(e.hours)*Number(e.rate))}</span>
+                          <span style={{ fontWeight:700,color:C.text,fontSize:15 }}>
+                            {fmtMoney((Number(e.hours)*Number(e.rate)) + (Number(e.expense)||0))}
+                          </span>
                         </div>
                         <div style={{ fontSize:13,color:C.sub,marginTop:3 }}>
                           <span style={{fontWeight:e.location?700:400, color:e.location?C.navy:C.sub}}>
                             {getLocName(e)}
-                          </span> · {fmtHr(e.hours)} @ ${e.rate}/hr
+                          </span> · {fmtHr(e.hours)} @ ${e.rate}/hr 
+                          {e.expense && Number(e.expense) > 0 ? ` · 🛒 ${fmtMoney(e.expense)} exp` : ""}
                         </div>
                         {e.km ? <div style={{ fontSize:13,color:C.sub }}>🚗 {e.km}km transport</div> : null}
                       </div>
                       
                       <div style={{ display: "flex", gap: 6, marginLeft: 12 }}>
-                        {/* Edit Button */}
                         <button onClick={() => startEditing(e)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.tealBg,color:C.teal,fontSize:16,fontWeight:700,cursor:"pointer",flexShrink:0 }}>✏️</button>
-                        {/* Delete Button */}
                         <button onClick={() => delEntry(e.id)} style={{ width:36,height:36,borderRadius:8,border:"none",background:C.redBg,color:C.red,fontSize:18,fontWeight:700,cursor:"pointer",flexShrink:0 }}>×</button>
                       </div>
                     </div>
@@ -518,6 +547,12 @@ export default function App() {
         {/* ════ SETTINGS ════════════════════════════ */}
         {tab === "settings" && (
           <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
+            {/* New Toggle for Expenses */}
+            <Card style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Label style={{ marginBottom: 0 }}>Enable Expenses Column</Label>
+              <input type="checkbox" checked={settings.enableExpenses || false} onChange={e => updS({enableExpenses: e.target.checked})} style={{ width: 22, height: 22, cursor: "pointer" }} />
+            </Card>
+
             <Card>
               <Label>Default Hourly Rate ($)</Label>
               <Input type="number" value={settings.defaultRate} onChange={e => updS({defaultRate:e.target.value})} />
